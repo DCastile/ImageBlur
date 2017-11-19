@@ -89,7 +89,7 @@ void main(int argc, char *argv[]) {
     box_blur(image);
 
 
-    write_bmp("good_out.bmp", image);
+    write_bmp("out.bmp", image);
 
     free_bmp_image(image);
 }
@@ -261,7 +261,7 @@ void box_blur(BMP_Image *image) {
     int col_jump = 1; //sizeof(Pixel);
 
 
-    Pixel *new_pixels = malloc(sizeof(Pixel) * image->bip_header->width * image->bip_header->height);
+    Pixel *new_pixels = malloc(sizeof(Pixel) * width * height);
     Pixel *new_cursor = new_pixels;
 
     Pixel *cursor = image->pixels;
