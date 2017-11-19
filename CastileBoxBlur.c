@@ -260,7 +260,7 @@ void box_blur(BMP_Image *image) {
     int width = image->bip_header->width;
     int height = image->bip_header->height;
 
-    int row_jump = width; // * sizeof(Pixel); //TODO figure out why the jumps are * 3
+    int row_jump = width; // * sizeof(Pixel); //PITFALL!!
     int col_jump = 1; //sizeof(Pixel);
 
 
@@ -280,19 +280,6 @@ void box_blur(BMP_Image *image) {
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-
-//            neighbors[0] = cursor - row_jump - col_jump;
-//            neighbors[1] = cursor - row_jump;
-//            neighbors[2] = cursor - row_jump + col_jump;
-//
-//            neighbors[3] = cursor - col_jump;
-//            neighbors[4] = cursor;
-//            neighbors[5] = cursor + col_jump;
-//
-//            neighbors[6] = cursor + row_jump - col_jump;
-//            neighbors[7] = cursor + row_jump;
-//            neighbors[8] = cursor + row_jump + col_jump;
-
             if(i == 0) {
                 neighbors[0] = NULL;
                 neighbors[1] = NULL;
@@ -322,7 +309,6 @@ void box_blur(BMP_Image *image) {
             cursor++;
             new_cursor++;
         }
-        printf("");
     }
 
     free(image->pixels);
@@ -340,6 +326,8 @@ void blur(Pixel *neighbors[9], Pixel *new_pixel) {
             g += neighbors[i]->g;
             r += neighbors[i]->r;
             count++;
+        } else {
+            printf("excluded\n");
         }
     }
     new_pixel->b = b / count;
