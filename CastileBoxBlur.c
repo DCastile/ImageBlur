@@ -70,7 +70,6 @@ void print_bip_header(BIP_Header *bip_header);
 void print_pixel_data(BMP_Image *bmp_image);
 
 void box_blur(BMP_Image *image);
-
 void blur(Pixel *neighbors[9], Pixel *new_pixel);
 
 
@@ -86,13 +85,11 @@ void main(int argc, char *argv[]) {
     print_bip_header(image->bip_header);
     printf("\n");
 
-//    print_pixel_data(image);
 
     box_blur(image);
 
-//    print_pixel_data(image);
 
-    write_bmp("out.bmp", image);
+    write_bmp("good_out.bmp", image);
 
     free_bmp_image(image);
 }
@@ -264,9 +261,6 @@ void box_blur(BMP_Image *image) {
     int col_jump = 1; //sizeof(Pixel);
 
 
-    printf("Head: 0x%x\n",(unsigned int) image->pixels);
-    printf("Len: 0x%x\n", (unsigned int) sizeof(Pixel) * width * height);
-
     Pixel *new_pixels = malloc(sizeof(Pixel) * image->bip_header->width * image->bip_header->height);
     Pixel *new_cursor = new_pixels;
 
@@ -280,12 +274,12 @@ void box_blur(BMP_Image *image) {
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-            if(i == 0) {
+            if (i == 0) {
                 neighbors[0] = NULL;
                 neighbors[1] = NULL;
                 neighbors[2] = NULL;
             } else {
-                neighbors[0] = j == 0 ? NULL :  cursor - row_jump - col_jump;
+                neighbors[0] = j == 0 ? NULL : cursor - row_jump - col_jump;
                 neighbors[1] = cursor - row_jump;
                 neighbors[2] = j == width - 1 ? NULL : cursor - row_jump + col_jump;
             }
@@ -320,14 +314,12 @@ void blur(Pixel *neighbors[9], Pixel *new_pixel) {
     uint b = 0, g = 0, r = 0;
 
     uint count = 0;
-    for(int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++) {
         if (neighbors[i] != NULL) {
             b += neighbors[i]->b;
             g += neighbors[i]->g;
             r += neighbors[i]->r;
             count++;
-        } else {
-            printf("excluded\n");
         }
     }
     new_pixel->b = b / count;
