@@ -86,11 +86,11 @@ void main(int argc, char *argv[]) {
     print_bip_header(image->bip_header);
     printf("\n");
 
-    print_pixel_data(image);
+//    print_pixel_data(image);
 
     box_blur(image);
 
-    print_pixel_data(image);
+//    print_pixel_data(image);
 
     write_bmp("out.bmp", image);
 
@@ -257,117 +257,64 @@ void print_pixel_data(BMP_Image *bmp_image) {
 
 
 void box_blur(BMP_Image *image) {
+    int width = image->bip_header->width;
+    int height = image->bip_header->height;
+
+    int row_jump = width; // * sizeof(Pixel); //TODO figure out why the jumps are * 3
+    int col_jump = 1; //sizeof(Pixel);
+
+
+    printf("Head: 0x%x\n",(unsigned int) image->pixels);
+    printf("Len: 0x%x\n", (unsigned int) sizeof(Pixel) * width * height);
+
     Pixel *new_pixels = malloc(sizeof(Pixel) * image->bip_header->width * image->bip_header->height);
     Pixel *new_cursor = new_pixels;
 
     Pixel *cursor = image->pixels;
-    int x = 0, y = 0;
+
     Pixel *neighbors[9];
     //  [0][1][2]
     //  [3][4][5]
     //  [6][7][8]
 
-    int width = image->bip_header->width;
-    int height = image->bip_header->height;
 
-    int row_jump = width * sizeof(Pixel);
-    int col_jump = sizeof(Pixel);
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
 
+//            neighbors[0] = cursor - row_jump - col_jump;
+//            neighbors[1] = cursor - row_jump;
+//            neighbors[2] = cursor - row_jump + col_jump;
+//
+//            neighbors[3] = cursor - col_jump;
+//            neighbors[4] = cursor;
+//            neighbors[5] = cursor + col_jump;
+//
+//            neighbors[6] = cursor + row_jump - col_jump;
+//            neighbors[7] = cursor + row_jump;
+//            neighbors[8] = cursor + row_jump + col_jump;
 
-    for (int i = 0; i < image->bip_header->height; i++) {
-        for (int j = 0; j < image->bip_header->width; j++) {
-
-            if (i == 0 & j == 0) { // top left
-                neighbors[0] = cursor;
-                neighbors[1] = cursor + col_jump;
-                neighbors[2] = cursor + col_jump * 2;
-                neighbors[3] = cursor + row_jump;
-                neighbors[4] = cursor + row_jump + col_jump;
-                neighbors[5] = cursor + row_jump + col_jump * 2;
-                neighbors[6] = cursor + row_jump * 2;
-                neighbors[7] = cursor + row_jump * 2 + col_jump;
-                neighbors[8] = cursor + row_jump * 2 + col_jump * 2;
-            } else if (i == 0 & j == width - 1) { // top right
-                neighbors[0] = cursor - col_jump * 2;
-                neighbors[1] = cursor - col_jump;
-                neighbors[2] = cursor;
-                neighbors[3] = cursor + row_jump - col_jump * 2;
-                neighbors[4] = cursor + row_jump - col_jump;
-                neighbors[5] = cursor + row_jump;
-                neighbors[6] = cursor + row_jump * 2 - col_jump * 2;
-                neighbors[7] = cursor + row_jump * 2 - col_jump;
-                neighbors[8] = cursor + row_jump * 2;
-            } else if (i == height - 1 & j == 0) { // bottom left
-                neighbors[0] = cursor - row_jump * 2;
-                neighbors[1] = cursor - row_jump * 2 + col_jump;
-                neighbors[2] = cursor - row_jump * 2 + col_jump * 2;
-                neighbors[3] = cursor - row_jump;
-                neighbors[4] = cursor - row_jump + col_jump;
-                neighbors[5] = cursor - row_jump + col_jump * 2;
-                neighbors[6] = cursor;
-                neighbors[7] = cursor + col_jump;
-                neighbors[8] = cursor + col_jump * 2;
-            } else if (i == height - 1 & j == width - 1) { // bottom right
-                neighbors[0] = cursor - row_jump * 2 - col_jump * 2;
-                neighbors[1] = cursor - row_jump * 2 - col_jump;
-                neighbors[2] = cursor - row_jump * 2;
-                neighbors[3] = cursor - row_jump - col_jump * 2;
-                neighbors[4] = cursor - row_jump - col_jump;
-                neighbors[5] = cursor - row_jump;
-                neighbors[6] = cursor - col_jump * 2;
-                neighbors[7] = cursor - col_jump;
-                neighbors[8] = cursor;
-            } else if (i == 0) { // top
-                neighbors[0] = cursor - col_jump;
-                neighbors[1] = cursor;
-                neighbors[2] = cursor + col_jump;
-                neighbors[3] = cursor + row_jump - col_jump;
-                neighbors[4] = cursor + row_jump;
-                neighbors[5] = cursor + row_jump + col_jump;
-                neighbors[6] = cursor + row_jump * 2 - col_jump;
-                neighbors[7] = cursor + row_jump * 2;
-                neighbors[8] = cursor + row_jump * 2 + col_jump;
-            } else if (i == height - 1) { // bottom
-                neighbors[0] = cursor - row_jump * 2 - col_jump;
-                neighbors[1] = cursor - row_jump * 2;
-                neighbors[2] = cursor - row_jump * 2 + col_jump;
-                neighbors[3] = cursor - row_jump - col_jump;
-                neighbors[4] = cursor - row_jump;
-                neighbors[5] = cursor - row_jump + col_jump;
-                neighbors[6] = cursor - col_jump;
-                neighbors[7] = cursor;
-                neighbors[8] = cursor + col_jump;
-            } else if (j == 0) { // left
-                neighbors[0] = cursor - row_jump;
-                neighbors[1] = cursor - row_jump + col_jump;
-                neighbors[2] = cursor - row_jump + col_jump * 2;
-                neighbors[3] = cursor;
-                neighbors[4] = cursor + col_jump;
-                neighbors[5] = cursor + col_jump * 2;
-                neighbors[6] = cursor + row_jump;
-                neighbors[7] = cursor + row_jump + col_jump;
-                neighbors[8] = cursor + row_jump + col_jump * 2;
-            } else if (j == width - 1) { // right
-                neighbors[0] = cursor - row_jump - col_jump * 2;
-                neighbors[1] = cursor - row_jump - col_jump;
-                neighbors[2] = cursor - row_jump;
-                neighbors[3] = cursor - col_jump * 2;
-                neighbors[4] = cursor - col_jump;
-                neighbors[5] = cursor;
-                neighbors[6] = cursor + row_jump - col_jump * 2;
-                neighbors[7] = cursor + row_jump - col_jump;
-                neighbors[8] = cursor + row_jump;
-            }
-            else {
-                neighbors[0] = cursor - row_jump - col_jump;
+            if(i == 0) {
+                neighbors[0] = NULL;
+                neighbors[1] = NULL;
+                neighbors[2] = NULL;
+            } else {
+                neighbors[0] = j == 0 ? NULL :  cursor - row_jump - col_jump;
                 neighbors[1] = cursor - row_jump;
-                neighbors[2] = cursor - row_jump + col_jump;
-                neighbors[3] = cursor - col_jump;
-                neighbors[4] = cursor;
-                neighbors[5] = cursor + col_jump;
-                neighbors[6] = cursor + row_jump - col_jump;
+                neighbors[2] = j == width - 1 ? NULL : cursor - row_jump + col_jump;
+            }
+
+            neighbors[3] = j == 0 ? NULL : cursor - col_jump;
+            neighbors[4] = cursor;
+            neighbors[5] = j == width - 1 ? NULL : cursor + col_jump;
+
+            if (i == height - 1) {
+                neighbors[6] = NULL;
+                neighbors[7] = NULL;
+                neighbors[8] = NULL;
+            } else {
+                neighbors[6] = j == 0 ? NULL : cursor + row_jump - col_jump;
                 neighbors[7] = cursor + row_jump;
-                neighbors[8] = cursor + row_jump + col_jump;
+                neighbors[8] = j == width - 1 ? NULL : cursor + row_jump + col_jump;
             }
 
             blur(neighbors, new_cursor);
@@ -375,6 +322,7 @@ void box_blur(BMP_Image *image) {
             cursor++;
             new_cursor++;
         }
+        printf("");
     }
 
     free(image->pixels);
@@ -385,12 +333,16 @@ void box_blur(BMP_Image *image) {
 void blur(Pixel *neighbors[9], Pixel *new_pixel) {
     uint b = 0, g = 0, r = 0;
 
+    uint count = 0;
     for(int i = 0; i < 9; i++) {
-        b += neighbors[i]->b;
-        g += neighbors[i]->g;
-        r += neighbors[i]->r;
+        if (neighbors[i] != NULL) {
+            b += neighbors[i]->b;
+            g += neighbors[i]->g;
+            r += neighbors[i]->r;
+            count++;
+        }
     }
-    new_pixel->b = b / 9;
-    new_pixel->g = g / 9;
-    new_pixel->r = r / 9;
+    new_pixel->b = b / count;
+    new_pixel->g = g / count;
+    new_pixel->r = r / count;
 }
