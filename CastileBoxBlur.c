@@ -60,7 +60,8 @@ typedef struct struct_image_chunk {
     uint chunk_x;
     uint image_height;
     uint image_width;
-
+    uint x_part;
+    uint y_part;
 } ImageChunk;
 
 // Forward function declarations
@@ -286,7 +287,7 @@ ImageChunk *partition_image(BMP_Image *image, uint num_partitions) {
     Pixel *pixels = image->pixels;
 
     // TODO: what about odd height/width
-    ImageChunk *partitions = malloc(sizeof(ImageChunk) * num_partitions); // TODO: gonna have to free this up
+    ImageChunk *partitions = malloc(sizeof(ImageChunk) * num_partitions);
     ImageChunk *partition_cursor = partitions;
 
     for (int i = 0; i < num_partitions; i++) {
@@ -322,8 +323,7 @@ ImageChunk *partition_image(BMP_Image *image, uint num_partitions) {
         partition_cursor->image_height = height;
         partition_cursor->image_width = width;
 
-
-        partition_cursor->pixels = malloc(sizeof(Pixel) * chunk_height * chunk_width); //TODO: gotta free these sometime
+        partition_cursor->pixels = malloc(sizeof(Pixel) * chunk_height * chunk_width);
         Pixel *new_cursor = partition_cursor->pixels;
 
         for (int j = 0; j < chunk_height; j++) {
@@ -383,8 +383,10 @@ Pixel *reassemble_partitions(ImageChunk *chunks, uint num_partitions) {
                 old_cursor++;
             }
         }
+        free(chunk_cursor->pixels);
         chunk_cursor++;
     }
+    free(chunks);
     return pixels;
 }
 
