@@ -52,6 +52,17 @@ typedef struct struct_bmp_image {
     Pixel *pixels;
 } BMP_Image;
 
+typedef struct struct_image_chunk {
+    Pixel *pixels;
+    uint chunk_height;
+    uint chunk_width;
+    uint chunk_y;
+    uint chunk_x;
+    uint image_height;
+    uint image_width;
+
+} ImageChunk;
+
 // Forward function declarations
 BMP_Header *read_header(FILE *fp);
 BIP_Header *read_bip_header(FILE *fp);
@@ -69,7 +80,9 @@ void print_header(BMP_Header *header);
 void print_bip_header(BIP_Header *bip_header);
 void print_pixel_data(BMP_Image *bmp_image);
 
-void box_blur(BMP_Image *image);
+void box_blur(BMP_Image *image, uint num_threads);
+ImageChunk *partition_image(BMP_Image *image, uint num_partitions);
+Pixel *reassemble_partitions(ImageChunk *chunks, uint num_partitions);
 void blur(Pixel *neighbors[9], Pixel *new_pixel);
 
 
@@ -86,7 +99,7 @@ void main(int argc, char *argv[]) {
     printf("\n");
 
 
-    box_blur(image);
+    box_blur(image, 4);
 
 
     write_bmp("out.bmp", image);
@@ -253,62 +266,127 @@ void print_pixel_data(BMP_Image *bmp_image) {
 }
 
 
-void box_blur(BMP_Image *image) {
-    int width = image->bip_header->width;
-    int height = image->bip_header->height;
-
-    int row_jump = width; // * sizeof(Pixel); //PITFALL!!
-    int col_jump = 1; //sizeof(Pixel);
-
-
-    Pixel *new_pixels = malloc(sizeof(Pixel) * width * height);
-    Pixel *new_cursor = new_pixels;
-
-    Pixel *cursor = image->pixels;
-
-    Pixel *neighbors[9];
-    //  [0][1][2]
-    //  [3][4][5]
-    //  [6][7][8]
-
-
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            if (i == 0) {
-                neighbors[0] = NULL;
-                neighbors[1] = NULL;
-                neighbors[2] = NULL;
-            } else {
-                neighbors[0] = j == 0 ? NULL : cursor - row_jump - col_jump;
-                neighbors[1] = cursor - row_jump;
-                neighbors[2] = j == width - 1 ? NULL : cursor - row_jump + col_jump;
-            }
-
-            neighbors[3] = j == 0 ? NULL : cursor - col_jump;
-            neighbors[4] = cursor;
-            neighbors[5] = j == width - 1 ? NULL : cursor + col_jump;
-
-            if (i == height - 1) {
-                neighbors[6] = NULL;
-                neighbors[7] = NULL;
-                neighbors[8] = NULL;
-            } else {
-                neighbors[6] = j == 0 ? NULL : cursor + row_jump - col_jump;
-                neighbors[7] = cursor + row_jump;
-                neighbors[8] = j == width - 1 ? NULL : cursor + row_jump + col_jump;
-            }
-
-            blur(neighbors, new_cursor);
-
-            cursor++;
-            new_cursor++;
-        }
-    }
+void box_blur(BMP_Image *image, uint num_threads) {
+    ImageChunk *partitions;
+    partitions = partition_image(image, num_threads);
 
     free(image->pixels);
-    image->pixels = new_pixels;
+    image->pixels = reassemble_partitions(partitions, num_threads);
+
 }
 
+
+ImageChunk *partition_image(BMP_Image *image, uint num_partitions) {
+    uint width = image->bip_header->width;
+    uint height = image->bip_header->height;
+
+    uint row_jump = width; // * sizeof(Pixel); //PITFALL!!
+    uint col_jump = 1; // sizeof(Pixel);
+
+    Pixel *pixels = image->pixels;
+
+    // TODO: what about odd height/width
+    ImageChunk *partitions = malloc(sizeof(ImageChunk) * num_partitions); // TODO: gonna have to free this up
+    ImageChunk *partition_cursor = partitions;
+
+    for (int i = 0; i < num_partitions; i++) {
+        uint x_part = 0, y_part = 0;
+        switch (i) { // hard coded for 4
+            case 0:
+                y_part = 0;
+                x_part = 0;
+                break;
+            case 1:
+                y_part = 0;
+                x_part = 1;
+                break;
+            case 2:
+                y_part = 1;
+                x_part = 0;
+                break;
+            case 3:
+                y_part = 1;
+                x_part = 1;
+                break;
+        }
+
+        uint chunk_height = height / 2;
+        uint chunk_width = width / 2;
+
+        partition_cursor->chunk_height = chunk_height;
+        partition_cursor->chunk_width = chunk_width;
+
+        partition_cursor->chunk_y = (chunk_height * y_part);
+        partition_cursor->chunk_x = (chunk_width * x_part);
+
+        partition_cursor->image_height = height;
+        partition_cursor->image_width = width;
+
+
+        partition_cursor->pixels = malloc(sizeof(Pixel) * chunk_height * chunk_width); //TODO: gotta free these sometime
+        Pixel *new_cursor = partition_cursor->pixels;
+
+        for (int j = 0; j < chunk_height; j++) {
+            for (int k = 0; k < chunk_width; k++) {
+                uint x = (k + (chunk_width * x_part));
+                uint y = (j + (chunk_height * y_part));
+
+                *new_cursor = *(pixels + (row_jump * y) + (col_jump * x));
+                //printf("%u, %u\t\t%u %u %u\n", x, y, new_cursor->r, new_cursor->g, new_cursor->b);
+                new_cursor++;
+            }
+        }
+        partition_cursor++;
+    }
+    return partitions;
+}
+
+Pixel *reassemble_partitions(ImageChunk *chunks, uint num_partitions) {
+    Pixel *pixels = malloc(sizeof(Pixel) * chunks->image_width * chunks->image_height);
+
+    uint row_jump = chunks->image_width; // * sizeof(Pixel); //PITFALL!!
+    uint col_jump = 1; // sizeof(Pixel);
+
+    ImageChunk *chunk_cursor = chunks;
+    for (int i = 0; i < num_partitions; i++) {
+
+        uint x_part = 0, y_part = 0;
+        switch (i) { // hard coded for 4
+            case 0:
+                y_part = 0;
+                x_part = 0;
+                break;
+            case 1:
+                y_part = 0;
+                x_part = 1;
+                break;
+            case 2:
+                y_part = 1;
+                x_part = 0;
+                break;
+            case 3:
+                y_part = 1;
+                x_part = 1;
+                break;
+        }
+
+        uint chunk_height = chunk_cursor->chunk_height;
+        uint chunk_width = chunk_cursor->chunk_width;
+
+        Pixel *old_cursor = chunk_cursor->pixels;
+        for (int j = 0; j < chunk_height; j++) {
+            for (int k = 0; k < chunk_width; k++) {
+                uint x = (k + (chunk_width * x_part));
+                uint y = (j + (chunk_height * y_part));
+
+                *(pixels + (row_jump * y) + (col_jump * x)) = *old_cursor;
+                old_cursor++;
+            }
+        }
+        chunk_cursor++;
+    }
+    return pixels;
+}
 
 void blur(Pixel *neighbors[9], Pixel *new_pixel) {
     uint b = 0, g = 0, r = 0;
@@ -326,3 +404,61 @@ void blur(Pixel *neighbors[9], Pixel *new_pixel) {
     new_pixel->g = g / count;
     new_pixel->r = r / count;
 }
+
+
+
+//void box_blur(BMP_Image *image) {
+//    int width = image->bip_header->width;
+//    int height = image->bip_header->height;
+//
+//    int row_jump = width; // * sizeof(Pixel); //PITFALL!!
+//    int col_jump = 1; //sizeof(Pixel);
+//
+//
+//    Pixel *new_pixels = malloc(sizeof(Pixel) * width * height);
+//    Pixel *new_cursor = new_pixels;
+//
+//    Pixel *cursor = image->pixels;
+//
+//    Pixel *neighbors[9];
+//    //  [0][1][2]
+//    //  [3][4][5]
+//    //  [6][7][8]
+//
+//
+//    for (int i = 0; i < height; i++) {
+//        for (int j = 0; j < width; j++) {
+//            if (i == 0) {
+//                neighbors[0] = NULL;
+//                neighbors[1] = NULL;
+//                neighbors[2] = NULL;
+//            } else {
+//                neighbors[0] = j == 0 ? NULL : cursor - row_jump - col_jump;
+//                neighbors[1] = cursor - row_jump;
+//                neighbors[2] = j == width - 1 ? NULL : cursor - row_jump + col_jump;
+//            }
+//
+//            neighbors[3] = j == 0 ? NULL : cursor - col_jump;
+//            neighbors[4] = cursor;
+//            neighbors[5] = j == width - 1 ? NULL : cursor + col_jump;
+//
+//            if (i == height - 1) {
+//                neighbors[6] = NULL;
+//                neighbors[7] = NULL;
+//                neighbors[8] = NULL;
+//            } else {
+//                neighbors[6] = j == 0 ? NULL : cursor + row_jump - col_jump;
+//                neighbors[7] = cursor + row_jump;
+//                neighbors[8] = j == width - 1 ? NULL : cursor + row_jump + col_jump;
+//            }
+//
+//            blur(neighbors, new_cursor);
+//
+//            cursor++;
+//            new_cursor++;
+//        }
+//    }
+//
+//    free(image->pixels);
+//    image->pixels = new_pixels;
+//}
