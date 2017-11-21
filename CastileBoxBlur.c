@@ -53,8 +53,6 @@ typedef struct struct_image_chunk {
     Pixel *pixels;
     uint chunk_height;
     uint chunk_width;
-    uint chunk_y;
-    uint chunk_x;
     uint image_height;
     uint image_width;
     uint x_part;
@@ -86,10 +84,10 @@ void blur(Pixel *neighbors[9], Pixel *new_pixel);
 
 
 int main(int argc, char *argv[]) {
-    //char *input_file_name = argv[1];
-    //char *output_file_name = argv[2];
+    char *input_file_name = argv[1];
+    char *output_file_name = argv[2];
 
-    char *input_file_name = "test1puppy.bmp";
+//    char *input_file_name = "test1puppy.bmp";
     BMP_Image *image = read_bmp(input_file_name);
 
     print_header(image->header);
@@ -101,7 +99,7 @@ int main(int argc, char *argv[]) {
     box_blur(image, 4);
 
 
-    write_bmp("out.bmp", image);
+    write_bmp(output_file_name, image);
 
     free_bmp_image(image);
     return 1;
@@ -272,18 +270,18 @@ void box_blur(BMP_Image *image, uint num_threads) {
     pthread_t threads[num_threads];
     ImageChunk *partition_cursor = partitions;
     for (int i = 0; i < num_threads; i++) {
-//        pthread_create(&threads[i], NULL, (void *) blur_partition, (void *) partition_cursor);
+        pthread_create(&threads[i], NULL, (void *) blur_partition, (void *) partition_cursor);
 
-        blur_partition(partition_cursor);
+//        blur_partition(partition_cursor);
         partition_cursor++;
     }
 
-//    partition_cursor = partitions;
-//    for (int j = 0; j < num_threads; j++) {
-//        pthread_join(threads[j], NULL);
-//
-//        partition_cursor++;
-//    }
+    partition_cursor = partitions;
+    for (int j = 0; j < num_threads; j++) {
+        pthread_join(threads[j], NULL);
+
+        partition_cursor++;
+    }
 
     free(image->pixels);
     image->pixels = reassemble_partitions(partitions, num_threads);
@@ -331,8 +329,6 @@ ImageChunk *partition_image(BMP_Image *image, uint num_partitions) {
         partition_cursor->chunk_height = chunk_height;
         partition_cursor->chunk_width = chunk_width;
 
-        partition_cursor->chunk_y = (chunk_height * y_part);
-        partition_cursor->chunk_x = (chunk_width * x_part);
 
         partition_cursor->image_height = height;
         partition_cursor->image_width = width;
@@ -347,8 +343,8 @@ ImageChunk *partition_image(BMP_Image *image, uint num_partitions) {
             for (int k = 0; k < chunk_width; k++) {
                 uint x = (k + (chunk_width * x_part));
                 uint y = (j + (chunk_height * y_part));
-                x += (x_part == 0) ? 0 : -1;
-                y += (y_part == 0) ? 0 : -1;
+                x += (x_part == 0) ? 0 : -2;
+                y += (y_part == 0) ? 0 : -2;
 
 
                 *new_cursor = *(pixels + (row_jump * y) + (col_jump * x));
@@ -397,12 +393,12 @@ ImageChunk *blur_partition(ImageChunk *chunk) {
             int x_offset = (x_part == 0) ? 0 : 1;
             int y_offset = (y_part == 0) ? 0 : row_jump;
 
-            //cursor = head + (y * row_jump + y_offset) + (x * col_jump + x_offset); // point cursor to same pixel(relatively) as new_cursor
-            cursor = head + (y * row_jump) + (x * col_jump); // point cursor to same pixel(relatively) as new_cursor
+            cursor = head + (y * row_jump + y_offset) + (x * col_jump + x_offset); // point cursor to same pixel(relatively) as new_cursor
+//            cursor = head + (y * row_jump) + (x * col_jump); // point cursor to same pixel(relatively) as new_cursor
 
             uint global_y = y + (y_part * chunk->chunk_height);
             uint global_x = x + (x_part * chunk->chunk_width);
-            printf("%u, %u\t\t%u\t%u\t%u\n", global_x, global_y, cursor->r, cursor->g, cursor->b);
+//            printf("%u, %u\t\t%u\t%u\t%u\n", global_x, global_y, cursor->r, cursor->g, cursor->b);
 
 
             if (x == 0 & x_part == 1) {
@@ -438,13 +434,6 @@ ImageChunk *blur_partition(ImageChunk *chunk) {
                 neighbors[8] = global_x == global_width - 1 ? NULL : cursor + row_jump + col_jump;
             }
 
-            for (int i = 0; i < 9; i++) {
-                if (neighbors[i] == NULL) {
-                    printf("\t\t%u\tnull\n", i);
-                } else {
-                printf("\t\t%u\t%u\t%u\t%u\n", i, neighbors[i]->r, neighbors[i]->g, neighbors[i]->b);
-                }
-            }
             blur(neighbors, new_cursor);
 
 //            printf("%u, %u\t%u\t%u\t%u\n", global_x, global_y, new_cursor->r, new_cursor->g, new_cursor->b);
@@ -516,59 +505,3 @@ void blur(Pixel *neighbors[9], Pixel *new_pixel) {
 }
 
 
-
-//void box_blur(BMP_Image *image) {
-//    int width = image->bip_header->width;
-//    int height = image->bip_header->height;
-//
-//    int row_jump = width; // * sizeof(Pixel); //PITFALL!!
-//    int col_jump = 1; //sizeof(Pixel);
-//
-//
-//    Pixel *new_pixels = malloc(sizeof(Pixel) * width * height);
-//    Pixel *new_cursor = new_pixels;
-//
-//    Pixel *cursor = image->pixels;
-//
-//    Pixel *neighbors[9];
-//    //  [0][1][2]
-//    //  [3][4][5]
-//    //  [6][7][8]
-//
-//
-//    for (int i = 0; i < height; i++) {
-//        for (int j = 0; j < width; j++) {
-//            if (i == 0) {
-//                neighbors[0] = NULL;
-//                neighbors[1] = NULL;
-//                neighbors[2] = NULL;
-//            } else {
-//                neighbors[0] = j == 0 ? NULL : cursor - row_jump - col_jump;
-//                neighbors[1] = cursor - row_jump;
-//                neighbors[2] = j == width - 1 ? NULL : cursor - row_jump + col_jump;
-//            }
-//
-//            neighbors[3] = j == 0 ? NULL : cursor - col_jump;
-//            neighbors[4] = cursor;
-//            neighbors[5] = j == width - 1 ? NULL : cursor + col_jump;
-//
-//            if (i == height - 1) {
-//                neighbors[6] = NULL;
-//                neighbors[7] = NULL;
-//                neighbors[8] = NULL;
-//            } else {
-//                neighbors[6] = j == 0 ? NULL : cursor + row_jump - col_jump;
-//                neighbors[7] = cursor + row_jump;
-//                neighbors[8] = j == width - 1 ? NULL : cursor + row_jump + col_jump;
-//            }
-//
-//            blur(neighbors, new_cursor);
-//
-//            cursor++;
-//            new_cursor++;
-//        }
-//    }
-//
-//    free(image->pixels);
-//    image->pixels = new_pixels;
-//}
